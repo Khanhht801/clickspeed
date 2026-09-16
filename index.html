@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Click Speed</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <main class="game">
+        <header class="game__header">
+            <h1 class="game__title">Click Speed</h1>
+        </header>
+
+        <section class="game__stats" aria-label="Game statistics">
+            <div class="stat">
+                <span class="stat__label">Score</span>
+                <span class="stat__value" id="score">0</span>
+            </div>
+            <div class="stat">
+                <span class="stat__label">Time</span>
+                <span class="stat__value" id="time">10</span>
+            </div>
+        </section>
+
+        <section class="game__area" aria-label="Game area">
+            <button type="button" class="game__start" id="start-btn">
+                Start Game
+            </button>
+        </section>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>

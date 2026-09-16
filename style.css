@@ -1,0 +1,405 @@
+/* =====================================================
+   Click Speed — Stylesheet
+   Dark mode, minimalist gaming feel
+   ===================================================== */
+
+/* ===== Design Tokens ===== */
+:root {
+    /* Surface colors */
+    --bg:            #0a0a0f;
+    --bg-2:          #13131d;
+    --card:          #15151f;
+    --card-border:   #252538;
+
+    /* Text */
+    --text:          #f1f5f9;
+    --text-dim:      #94a3b8;
+    --text-muted:    #64748b;
+
+    /* Accents — kept to 2 to avoid color noise */
+    --accent:        #22d3ee;   /* cyan — primary */
+    --accent-2:      #06b6d4;
+    --accent-glow:   rgba(34, 211, 238, 0.45);
+    --warning:       #fbbf24;   /* amber — for time */
+
+    /* Radii */
+    --radius:        16px;
+    --radius-sm:     10px;
+
+    /* Target size — referenced by JS for random-position bounds */
+    --target-size:   64px;
+
+    /* Fonts */
+    --font-sans:     'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --font-mono:     ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+}
+
+/* ===== Reset & Base ===== */
+*,
+*::before,
+*::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html,
+body {
+    height: 100%;
+}
+
+body {
+    font-family: var(--font-sans);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+
+    background:
+        radial-gradient(circle at 15% 10%, rgba(34, 211, 238, 0.05), transparent 45%),
+        radial-gradient(circle at 85% 90%, rgba(99, 102, 241, 0.05), transparent 45%),
+        linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
+    background-attachment: fixed;
+
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+/* ===== Game Card ===== */
+.game {
+    position: relative;
+    width: 100%;
+    max-width: 480px;
+    padding: 2rem 1.75rem;
+    text-align: center;
+
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    overflow: hidden;
+
+    box-shadow:
+        0 25px 50px -12px rgba(0, 0, 0, 0.55),
+        0 0 60px -20px rgba(34, 211, 238, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* Top accent line for subtle gaming flair */
+.game::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(34, 211, 238, 0.4) 50%,
+        transparent 100%
+    );
+}
+
+/* ===== Header / Title ===== */
+.game__header {
+    margin-bottom: 1.5rem;
+}
+
+.game__title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    background: linear-gradient(180deg, #ffffff 0%, var(--text-dim) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+}
+
+/* ===== Stats (Score / Time) ===== */
+.game__stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: var(--radius-sm);
+}
+
+.stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.stat__label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.stat__value {
+    font-family: var(--font-mono);
+    font-size: 2.25rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--accent);
+    text-shadow: 0 0 20px var(--accent-glow);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Time gets a different accent so it pops */
+.stat:nth-child(2) .stat__value {
+    color: var(--warning);
+    text-shadow: 0 0 20px rgba(251, 191, 36, 0.4);
+}
+
+/* ===== Game Area ===== */
+.game__area {
+    position: relative;
+    min-height: 280px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+
+    background:
+        radial-gradient(circle at center, rgba(34, 211, 238, 0.04), transparent 70%),
+        rgba(0, 0, 0, 0.3);
+    border: 1px dashed rgba(255, 255, 255, 0.06);
+    border-radius: var(--radius-sm);
+}
+
+/* ===== Start Button ===== */
+.game__start {
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #0a0a0f;
+
+    padding: 0.95rem 2.5rem;
+    border: none;
+    border-radius: 999px;
+    cursor: pointer;
+
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
+
+    box-shadow:
+        0 0 25px var(--accent-glow),
+        0 6px 18px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.35);
+
+    transition:
+        transform 0.18s ease,
+        box-shadow 0.2s ease,
+        filter 0.2s ease;
+}
+
+.game__start:hover {
+    transform: translateY(-2px) scale(1.02);
+    filter: brightness(1.08);
+    box-shadow:
+        0 0 40px var(--accent-glow),
+        0 10px 24px rgba(0, 0, 0, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.game__start:active {
+    transform: translateY(0) scale(0.98);
+}
+
+.game__start:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 4px;
+}
+
+/* =====================================================
+   Target
+   (JS will create <button class="target"> inside .game__area
+   in a later step — these styles are ready for it)
+   ===================================================== */
+.target {
+    position: absolute;
+    width: var(--target-size);
+    height: var(--target-size);
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    outline: none;
+
+    /* Scale from top-left so left/top position stays accurate */
+    transform-origin: top left;
+
+    background: radial-gradient(
+        circle at 35% 30%,
+        #67e8f9 0%,
+        var(--accent) 55%,
+        var(--accent-2) 100%
+    );
+
+    box-shadow:
+        0 0 30px var(--accent-glow),
+        inset 0 -6px 14px rgba(0, 0, 0, 0.3),
+        inset 0 4px 10px rgba(255, 255, 255, 0.3);
+
+    animation: target-pop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition:
+        transform 0.12s ease,
+        box-shadow 0.15s ease;
+}
+
+.target:hover {
+    transform: scale(1.1);
+    box-shadow:
+        0 0 45px var(--accent-glow),
+        inset 0 -6px 14px rgba(0, 0, 0, 0.3),
+        inset 0 4px 10px rgba(255, 255, 255, 0.35);
+}
+
+.target:active {
+    transform: scale(0.9);
+}
+
+@keyframes target-pop {
+    0%   { transform: scale(0);    opacity: 0; }
+    60%  { transform: scale(1.15); opacity: 1; }
+    100% { transform: scale(1);    opacity: 1; }
+}
+
+/* =====================================================
+   Result screen (rendered by JS inside .game__area)
+   ===================================================== */
+.result {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    width: 100%;
+    padding: 1.5rem 1rem;
+    text-align: center;
+    animation: target-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.result__title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-dim);
+    letter-spacing: 0.5px;
+}
+
+.result__score {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.result__value {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 3rem;
+    line-height: 1;
+    font-weight: 700;
+    color: var(--accent);
+    text-transform: none;
+    letter-spacing: 0;
+    text-shadow: 0 0 24px var(--accent-glow);
+    font-variant-numeric: tabular-nums;
+}
+
+.result__btn {
+    margin-top: 0.5rem;
+}
+
+/* =====================================================
+   Responsive
+   ===================================================== */
+
+/* Tablet (≤768px) */
+@media (max-width: 768px) {
+    .game {
+        max-width: 420px;
+        padding: 1.75rem 1.5rem;
+    }
+
+    .game__area {
+        min-height: 240px;
+    }
+
+    :root {
+        --target-size: 58px;
+    }
+}
+
+/* Mobile (≤480px) */
+@media (max-width: 480px) {
+    body {
+        padding: 1rem;
+    }
+
+    .game {
+        padding: 1.25rem 1rem;
+        border-radius: 14px;
+    }
+
+    .game__title {
+        font-size: 1.25rem;
+    }
+
+    .game__stats {
+        padding: 0.85rem 0.75rem;
+        gap: 0.75rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .stat__value {
+        font-size: 1.85rem;
+    }
+
+    .stat__label {
+        font-size: 0.65rem;
+        letter-spacing: 1.2px;
+    }
+
+    .game__area {
+        min-height: 300px;
+    }
+
+    .game__start {
+        font-size: 0.9rem;
+        padding: 0.85rem 2rem;
+        letter-spacing: 1.2px;
+    }
+
+    :root {
+        --target-size: 52px;
+    }
+}
+
+/* Accessibility — respect users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
