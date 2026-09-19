@@ -11,12 +11,24 @@ const gameArea   = document.querySelector(".game__area");
 
 // ----- Game Constants -----
 const GAME_DURATION = 30; // seconds
+const BEST_SCORE_KEY = "clickSpeed.bestScore";
 
 // ----- Game State -----
 let score    = 0;
 let timeLeft = GAME_DURATION;
 let timerId  = null;
 let isPlaying = false;
+
+// ----- High Score Helpers -----
+function getBestScore() {
+    const raw = localStorage.getItem(BEST_SCORE_KEY);
+    const n = parseInt(raw, 10);
+    return Number.isFinite(n) && n >= 0 ? n : 0;
+}
+
+function setBestScore(value) {
+    localStorage.setItem(BEST_SCORE_KEY, String(value));
+}
 
 // ----- DOM Helpers -----
 function updateUI() {
@@ -233,26 +245,50 @@ function endGame() {
     timeLeft  = 0;
     updateUI();
 
-    // 5. Show result screen & restore start button
-    showResultScreen();
+    // 5. Update best score (persisted via localStorage)
+    const previousBest = getBestScore();
+    const currentBest  = score > previousBest ? score : previousBest;
+    if (score > previousBest) {
+        setBestScore(score);
+    }
+
+    // 6. Show result screen with final stats
+    showResultScreen(currentBest);
 }
 
 /**
  * Build a simple result screen inside the game area.
- * The high-score key is reserved for a future step.
+ * Displays Final Score, CPS, Best Score, and a Play Again button.
  */
-function showResultScreen() {
+function showResultScreen(bestScore) {
     const panel = document.createElement("div");
     panel.className = "result";
     panel.setAttribute("role", "status");
     panel.setAttribute("aria-live", "polite");
 
+    const cps = (score / GAME_DURATION).toFixed(2);
+    const isNewBest = score > 0 && score >= bestScore;
+
     panel.innerHTML = `
         <h2 class="result__title">Time's up!</h2>
-        <p class="result__score">
-            Your score:
-            <strong class="result__value">${score}</strong>
-        </p>
+
+        <div class="result__stats">
+            <div class="result__col">
+                <span class="result__label">Final Score</span>
+                <strong class="result__value" id="result-final-score">${score}</strong>
+            </div>
+            <div class="result__col">
+                <span class="result__label">Clicks / Sec</span>
+                <strong class="result__value result__value--small" id="result-cps">${cps}</strong>
+            </div>
+            <div class="result__col result__col--best">
+                <span class="result__label">Best Score</span>
+                <strong class="result__value result__value--small" id="result-best">${bestScore}</strong>
+            </div>
+        </div>
+
+        ${isNewBest ? `<p class="result__badge">New Best!</p>` : ""}
+
         <button type="button" class="game__start result__btn" id="restart-btn">
             Play Again
         </button>
@@ -260,13 +296,12 @@ function showResultScreen() {
 
     gameArea.appendChild(panel);
 
-    // Restart: hide result, show original Start button, reset logic
+    // Play Again: remove result panel and start a fresh round.
+    // startGame() handles full state reset (score, timer, target, isPlaying).
     const restartBtn = document.getElementById("restart-btn");
     restartBtn.addEventListener("click", () => {
         panel.remove();
-        startBtn.hidden = false;
-        // Brief idle state showing the Start button as primary CTA
-        updateUI();
+        startGame();
     });
 }
 
