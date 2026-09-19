@@ -1,28 +1,29 @@
 ﻿// =====================================================
 // Click Speed Game — Core Logic
-// Handles game state, timer, and start/end flow.
+// Handles game state, timer, target spawning, and start/end flow.
 // =====================================================
 
 // ----- DOM References -----
-const startBtn   = document.getElementById("start-btn");
-const scoreEl    = document.getElementById("score");
-const timeEl     = document.getElementById("time");
-const gameArea   = document.querySelector(".game__area");
+const startBtn = document.getElementById("start-btn");
+const scoreEl  = document.getElementById("score");
+const timeEl   = document.getElementById("time");
+const gameArea = document.querySelector(".game__area");
 
 // ----- Game Constants -----
-const GAME_DURATION = 30; // seconds
+const GAME_DURATION  = 30;              // total seconds per round
 const BEST_SCORE_KEY = "clickSpeed.bestScore";
 
 // ----- Game State -----
-let score    = 0;
-let timeLeft = GAME_DURATION;
-let timerId  = null;
-let isPlaying = false;
+let score     = 0;
+let timeLeft  = GAME_DURATION;
+let timerId   = null;     // setInterval handle, null when no timer running
+let isPlaying = false;    // guards against clicks after game ends
+let activeTarget = null;  // current target element (single source of truth)
 
 // ----- High Score Helpers -----
 function getBestScore() {
     const raw = localStorage.getItem(BEST_SCORE_KEY);
-    const n = parseInt(raw, 10);
+    const n   = parseInt(raw, 10);
     return Number.isFinite(n) && n >= 0 ? n : 0;
 }
 
@@ -35,88 +36,36 @@ function updateUI() {
     scoreEl.textContent = score;
     timeEl.textContent  = timeLeft;
 
-    // Timer urgent state: add/remove .timer-urgent class based on seconds left
-    const enteringUrgent = isPlaying && timeLeft <= 5 && timeLeft > 0;
-    if (enteringUrgent) {
-        timeEl.parentElement.classList.add("timer-urgent");
-    } else {
-        timeEl.parentElement.classList.remove("timer-urgent");
-    }
-
-    // #region agent log
-    try {
-      const parentEl = timeEl.parentElement;
-      const cs = getComputedStyle(timeEl);
-      const csParent = getComputedStyle(parentEl);
-      const statNthChild2 = document.querySelector('.game__stats .stat:nth-child(2)');
-      const csTimeV2 = statNthChild2 ? getComputedStyle(statNthChild2.querySelector('.stat__value')) : null;
-      fetch('http://127.0.0.1:7424/ingest/718845ce-6025-4255-9a5b-e339f1522faa',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'7d2602'},body:JSON.stringify({
-        sessionId:'7d2602',runId:'pre-fix-2',hypothesisId:'B',location:'script.js:updateUI',
-        message:'updateUI state v2',
-        data:{
-          score,timeLeft,isPlaying,enteringUrgent,
-          parentClass:parentEl.className,
-          parentMatchesNth2:parentEl.matches('.game__stats .stat:nth-child(2)'),
-          timeEl_animName:cs.animationName,
-          timeEl_color:cs.color,
-          timeEl_textShadow:cs.textShadow,
-          parentEl_animName:csParent.animationName,
-          parentEl_color:csParent.color,
-          nth2_query_found:!!statNthChild2,
-          nth2_value_anim:csTimeV2?csTimeV2.animationName:null,
-          nth2_value_color:csTimeV2?csTimeV2.color:null,
-        },
-        timestamp:Date.now()
-      })}).catch(()=>{});
-    } catch(e){}
-    // #endregion
+    // Urgent timer style when ≤ 5s left and game is running
+    const urgent = isPlaying && timeLeft <= 5 && timeLeft > 0;
+    timeEl.parentElement.classList.toggle("timer-urgent", urgent);
 }
 
-/**
- * Trigger a score bump animation on the score element.
- * CSS handles the visual; JS just toggles the class.
- */
+/** Play the "score bump" animation by re-triggering the CSS animation. */
 function bumpScore() {
-    // Remove first to re-trigger animation if called rapidly
     scoreEl.classList.remove("bump");
-    // Force reflow so the removal actually registers before we re-add
+    // Force reflow so re-adding the class restarts the animation
     void scoreEl.offsetWidth;
     scoreEl.classList.add("bump");
-
-    // #region agent log
-    try { fetch('http://127.0.0.1:7424/ingest/718845ce-6025-4255-9a5b-e339f1522faa',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'7d2602'},body:JSON.stringify({sessionId:'7d2602',runId:'pre-fix-1',hypothesisId:'D',location:'script.js:bumpScore',message:'bump triggered',data:{className:scoreEl.className,computedAnim:getComputedStyle(scoreEl).animationName},timestamp:Date.now()})}).catch(()=>{}); } catch(e){}
-    // #endregion
-
     scoreEl.addEventListener("animationend", () => {
         scoreEl.classList.remove("bump");
     }, { once: true });
 }
 
-/**
- * Spawn a ripple at (x, y) relative to the game area.
- * Uses CSS animation — no canvas or libraries.
- */
+/** Spawn a ripple at (x, y) relative to the game area. */
 function spawnRipple(x, y) {
-    const ripple = document.createElement("span");
+    const rippleSize = getTargetSize();
+    const ripple     = document.createElement("span");
     ripple.className = "ripple";
-
-    // Center the ripple on the click point
-    const rippleSize = parseInt(getComputedStyle(document.documentElement)
-        .getPropertyValue("--target-size").trim(), 10) || 64;
     ripple.style.width  = `${rippleSize}px`;
     ripple.style.height = `${rippleSize}px`;
     ripple.style.left   = `${x - rippleSize / 2}px`;
     ripple.style.top    = `${y - rippleSize / 2}px`;
-
     gameArea.appendChild(ripple);
-
-    ripple.addEventListener("animationend", () => ripple.remove());
+    ripple.addEventListener("animationend", () => ripple.remove(), { once: true });
 }
 
-/**
- * Read the target size from CSS at call-time so it's always
- * accurate across breakpoints (64px desktop, 58px tablet, 52px mobile).
- */
+/** Read --target-size from CSS so responsive breakpoints are respected. */
 function getTargetSize() {
     const raw = getComputedStyle(document.documentElement)
         .getPropertyValue("--target-size")
@@ -125,47 +74,60 @@ function getTargetSize() {
 }
 
 /**
- * Spawn a target at a random position inside .game__area.
- * The target is guaranteed to stay fully within the area bounds.
+ * Compute a random (x, y) inside the game area that keeps the full
+ * target visible. Uses live rect dimensions, so it works across resize.
  */
-function spawnTarget() {
-    // Remove any existing target first
-    const existing = gameArea.querySelector(".target");
-    if (existing) existing.remove();
-
-    // Read live dimensions (accounts for padding, border, etc.)
-    const areaRect = gameArea.getBoundingClientRect();
-
-    // Use CSS custom property so responsive breakpoints are respected
+function getRandomPosition() {
+    const rect       = gameArea.getBoundingClientRect();
     const targetSize = getTargetSize();
+    const maxX = Math.max(0, rect.width  - targetSize);
+    const maxY = Math.max(0, rect.height - targetSize);
+    return {
+        x: Math.floor(Math.random() * (maxX + 1)),
+        y: Math.floor(Math.random() * (maxY + 1)),
+    };
+}
 
-    // Available space = area size minus target size (target must stay inside)
-    const maxX = areaRect.width  - targetSize;
-    const maxY = areaRect.height - targetSize;
+/** Reposition the current target if it falls outside the area after resize. */
+function repositionActiveTarget() {
+    if (!activeTarget || !isPlaying) return;
+    const { x, y } = getRandomPosition();
+    activeTarget.style.left = `${x}px`;
+    activeTarget.style.top  = `${y}px`;
+}
 
-    // Generate random offsets within valid bounds
-    const randomX = Math.floor(Math.random() * (maxX + 1));
-    const randomY = Math.floor(Math.random() * (maxY + 1));
+/** Remove any current target from the DOM. */
+function clearTarget() {
+    if (activeTarget) {
+        activeTarget.remove();
+        activeTarget = null;
+    }
+}
 
-    // Create and position the target
+/** Spawn a new target at a random valid position. Removes any previous one. */
+function spawnTarget() {
+    // Clear the previous target if it's still around
+    if (activeTarget) activeTarget.remove();
+
+    const { x, y } = getRandomPosition();
+
     const target = document.createElement("button");
-    target.type      = "button";
-    target.className = "target";
+    target.type            = "button";
+    target.className       = "target";
     target.setAttribute("aria-label", "Click target");
+    target.style.left      = `${x}px`;
+    target.style.top       = `${y}px`;
 
-    target.style.left = `${randomX}px`;
-    target.style.top  = `${randomY}px`;
-
-    // Scoring + effects: only works while game is actively playing
     target.addEventListener("click", (e) => {
+        // Ignore clicks after the game has ended
         if (!isPlaying) return;
 
-        // 1. Capture click position relative to game area (for ripple)
-        const rect = gameArea.getBoundingClientRect();
+        // Capture click position relative to the game area for the ripple
+        const rect   = gameArea.getBoundingClientRect();
         const clickX = e.clientX - rect.left;
         const clickY = e.clientY - rect.top;
 
-        // 2. Burst animation on current target, then spawn new one
+        // Burst animation, then on completion: spawn ripple, score, new target
         target.classList.add("target--burst");
         target.addEventListener("animationend", () => {
             spawnRipple(clickX, clickY);
@@ -177,101 +139,85 @@ function spawnTarget() {
     });
 
     gameArea.appendChild(target);
-
-    // #region agent log
-    try { fetch('http://127.0.0.1:7424/ingest/718845ce-6025-4255-9a5b-e339f1522faa',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'7d2602'},body:JSON.stringify({sessionId:'7d2602',runId:'pre-fix-1',hypothesisId:'C',location:'script.js:spawnTarget',message:'target spawned',data:{randomX,randomY,targetSize,areaW:areaRect.width,areaH:areaRect.height,computedAnim:getComputedStyle(target).animation},timestamp:Date.now()})}).catch(()=>{}); } catch(e){}
-    // #endregion
-}
-
-function clearTarget() {
-    const existing = gameArea.querySelector(".target");
-    if (existing) existing.remove();
+    activeTarget = target;
 }
 
 // ----- Timer -----
 function updateTimer() {
-    if (timeLeft <= 0) {
-        endGame();
-        return;
-    }
     timeLeft -= 1;
     updateUI();
 
+    // Stop at 0 — single source of truth for game ending
     if (timeLeft <= 0) {
-        // Defer endGame by 1 tick so UI shows "0" briefly,
-        // then the result screen will replace it.
-        setTimeout(endGame, 600);
+        endGame();
     }
 }
 
 // ----- Game Lifecycle -----
 function startGame() {
-    if (isPlaying) return; // guard against double-clicks
+    // Guard against multiple Start clicks creating duplicate timers
+    if (isPlaying) return;
 
-    // 0. Clean up any lingering animations from previous round
-    timeEl.parentElement.classList.remove("timer-urgent");
+    // Clean up any leftover result panel from a previous round
+    const oldPanel = gameArea.querySelector(".result");
+    if (oldPanel) oldPanel.remove();
 
-    // 1. Reset state
+    // Reset state
     score    = 0;
     timeLeft = GAME_DURATION;
+    isPlaying = true;
     updateUI();
 
-    // 2. Hide / disable Start button
+    // Hide the Start button — Play Again now lives on the result panel
     startBtn.hidden = true;
 
-    // 3. Spawn the first target
+    // Spawn first target and start the countdown
     spawnTarget();
-
-    // 4. Mark playing & start countdown
-    isPlaying = true;
-    timerId   = setInterval(updateTimer, 1000);
+    timerId = setInterval(updateTimer, 1000);
 }
 
 function endGame() {
-    // 1. Stop the timer (avoid multiple endGame calls)
+    // Stop the countdown (idempotent — safe if called more than once)
     if (timerId !== null) {
         clearInterval(timerId);
         timerId = null;
     }
 
-    // 2. Remove any remaining target
-    clearTarget();
+    // Mark game as ended so any pending target clicks are ignored
+    isPlaying = false;
 
-    // 3. Clean up timer-urgent animation
+    // Clean up the target and urgent-timer styling
+    clearTarget();
     timeEl.parentElement.classList.remove("timer-urgent");
 
-    // 4. Update state
-    isPlaying = false;
-    timeLeft  = 0;
+    // Persist best score if this round beat it
+    const previousBest = getBestScore();
+    const isNewBest    = score > previousBest && score > 0;
+    if (isNewBest) setBestScore(score);
+    const bestScore = Math.max(score, previousBest);
+
+    // Time stays at 0 on the final UI
+    timeLeft = 0;
     updateUI();
 
-    // 5. Update best score (persisted via localStorage)
-    const previousBest = getBestScore();
-    const currentBest  = score > previousBest ? score : previousBest;
-    if (score > previousBest) {
-        setBestScore(score);
-    }
-
-    // 6. Show result screen with final stats
-    showResultScreen(currentBest);
+    // Show the result panel with Final Score, CPS, Best Score, Play Again
+    showResultScreen(bestScore, isNewBest);
 }
 
 /**
- * Build a simple result screen inside the game area.
- * Displays Final Score, CPS, Best Score, and a Play Again button.
+ * Render the end-of-round result panel inside .game__area.
+ * Includes a Play Again button that fully resets and restarts the game.
  */
-function showResultScreen(bestScore) {
+function showResultScreen(bestScore, isNewBest) {
     const panel = document.createElement("div");
     panel.className = "result";
     panel.setAttribute("role", "status");
     panel.setAttribute("aria-live", "polite");
 
     const cps = (score / GAME_DURATION).toFixed(2);
-    const isNewBest = score > 0 && score >= bestScore;
 
     panel.innerHTML = `
         <h2 class="result__title">Time's up!</h2>
-
         <div class="result__stats">
             <div class="result__col">
                 <span class="result__label">Final Score</span>
@@ -286,9 +232,7 @@ function showResultScreen(bestScore) {
                 <strong class="result__value result__value--small" id="result-best">${bestScore}</strong>
             </div>
         </div>
-
         ${isNewBest ? `<p class="result__badge">New Best!</p>` : ""}
-
         <button type="button" class="game__start result__btn" id="restart-btn">
             Play Again
         </button>
@@ -296,10 +240,11 @@ function showResultScreen(bestScore) {
 
     gameArea.appendChild(panel);
 
-    // Play Again: remove result panel and start a fresh round.
-    // startGame() handles full state reset (score, timer, target, isPlaying).
-    const restartBtn = document.getElementById("restart-btn");
+    // Play Again: remove the panel and start a fresh round.
+    // Guard against double-clicks: if a game is already in progress, ignore.
+    const restartBtn = panel.querySelector("#restart-btn");
     restartBtn.addEventListener("click", () => {
+        if (isPlaying) return;
         panel.remove();
         startGame();
     });
@@ -307,6 +252,17 @@ function showResultScreen(bestScore) {
 
 // ----- Event Bindings -----
 startBtn.addEventListener("click", startGame);
+
+// Reposition the active target on resize so it never falls outside the area.
+// Debounced via rAF to avoid spamming during continuous resize events.
+let resizeFrame = null;
+window.addEventListener("resize", () => {
+    if (resizeFrame !== null) cancelAnimationFrame(resizeFrame);
+    resizeFrame = requestAnimationFrame(() => {
+        resizeFrame = null;
+        repositionActiveTarget();
+    });
+});
 
 // ----- Initial Render -----
 updateUI();

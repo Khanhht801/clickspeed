@@ -353,10 +353,6 @@ transform-origin: center;
 /* =====================================================
    Result screen (rendered by JS inside .game__area)
    ===================================================== */
-
-/* =====================================================
-   Result screen (rendered by JS inside .game__area)
-   ===================================================== */
 .result {
     display: flex;
     flex-direction: column;
@@ -374,17 +370,6 @@ transform-origin: center;
     font-weight: 700;
     color: var(--text-dim);
     letter-spacing: 0.5px;
-}
-
-.result__score {
-    font-size: 0.9rem;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.4rem;
 }
 
 .result__value {
