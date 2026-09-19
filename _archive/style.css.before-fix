@@ -26,11 +26,6 @@
     --radius:        16px;
     --radius-sm:     10px;
 
-    /* Timing */
-    --dur-fast:      0.15s;
-    --dur-base:      0.2s;
-    --dur-slow:      0.3s;
-
     /* Target size — referenced by JS for random-position bounds */
     --target-size:   64px;
 
@@ -160,48 +155,12 @@ body {
     color: var(--accent);
     text-shadow: 0 0 20px var(--accent-glow);
     font-variant-numeric: tabular-nums;
-
-    transition: transform var(--dur-fast) ease, color var(--dur-base) ease;
-}
-
-/* Score bump on increment (JS adds .bump class) */
-.stat__value.bump {
-    animation: score-bump 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-@keyframes score-bump {
-    0%   { transform: scale(1);   color: var(--accent);    text-shadow: 0 0 20px var(--accent-glow); }
-    40%  { transform: scale(1.4); color: #ffffff;            text-shadow: 0 0 30px rgba(255, 255, 255, 0.9), 0 0 50px var(--accent-glow); }
-    100% { transform: scale(1);   color: var(--accent);    text-shadow: 0 0 20px var(--accent-glow); }
 }
 
 /* Time gets a different accent so it pops */
 .stat:nth-child(2) .stat__value {
     color: var(--warning);
     text-shadow: 0 0 20px rgba(251, 191, 36, 0.4);
-    transition: transform var(--dur-fast) ease, color var(--dur-base) ease;
-}
-
-/* Timer pulses red & shakes when ≤ 5 seconds.
-   JS adds .timer-urgent to the parent .stat (not to .stat__value),
-   so selector must match the parent class, not the child. */
-.stat.timer-urgent .stat__value {
-    animation: timer-pulse 0.6s ease-in-out infinite, timer-shake 0.4s ease-in-out infinite;
-    color: #f87171;
-    text-shadow: 0 0 20px rgba(248, 113, 113, 0.6);
-}
-
-@keyframes timer-pulse {
-    0%, 100% { transform: scale(1);    }
-    50%       { transform: scale(1.12); }
-}
-
-@keyframes timer-shake {
-    0%, 100% { transform: translateX(0)      scale(1.12); }
-    20%      { transform: translateX(-3px)   scale(1.12); }
-    40%      { transform: translateX(3px)    scale(1.12); }
-    60%      { transform: translateX(-2px)  scale(1.12); }
-    80%      { transform: translateX(2px)   scale(1.12); }
 }
 
 /* ===== Game Area ===== */
@@ -242,26 +201,22 @@ body {
         inset 0 1px 0 rgba(255, 255, 255, 0.35);
 
     transition:
-        transform var(--dur-base) cubic-bezier(0.34, 1.56, 0.64, 1),
-        box-shadow var(--dur-base) ease,
-        filter var(--dur-base) ease,
-        background var(--dur-base) ease;
+        transform 0.18s ease,
+        box-shadow 0.2s ease,
+        filter 0.2s ease;
 }
 
 .game__start:hover {
-    transform: translateY(-3px) scale(1.04);
-    filter: brightness(1.12);
-    background: linear-gradient(135deg, #67e8f9 0%, var(--accent) 100%);
+    transform: translateY(-2px) scale(1.02);
+    filter: brightness(1.08);
     box-shadow:
-        0 0 50px var(--accent-glow),
-        0 14px 28px rgba(0, 0, 0, 0.4),
-        inset 0 1px 0 rgba(255, 255, 255, 0.45);
+        0 0 40px var(--accent-glow),
+        0 10px 24px rgba(0, 0, 0, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 .game__start:active {
-    transform: translateY(-1px) scale(0.97);
-    filter: brightness(0.95);
-    transition-duration: 0.08s;
+    transform: translateY(0) scale(0.98);
 }
 
 .game__start:focus-visible {
@@ -271,6 +226,8 @@ body {
 
 /* =====================================================
    Target
+   (JS will create <button class="target"> inside .game__area
+   in a later step — these styles are ready for it)
    ===================================================== */
 .target {
     position: absolute;
@@ -282,10 +239,8 @@ body {
     cursor: pointer;
     outline: none;
 
-/* Scale from center so hover/burst stay visually centered
-   on the random position set by left/top (maxX/maxY bounds
-   already account for full target size). */
-transform-origin: center;
+    /* Scale from top-left so left/top position stays accurate */
+    transform-origin: top left;
 
     background: radial-gradient(
         circle at 35% 30%,
@@ -299,24 +254,22 @@ transform-origin: center;
         inset 0 -6px 14px rgba(0, 0, 0, 0.3),
         inset 0 4px 10px rgba(255, 255, 255, 0.3);
 
-    animation: target-pop var(--dur-base) cubic-bezier(0.34, 1.56, 0.64, 1);
+    animation: target-pop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
     transition:
-        transform var(--dur-fast) ease,
-        box-shadow var(--dur-fast) ease;
+        transform 0.12s ease,
+        box-shadow 0.15s ease;
 }
 
-.target:not(.target--burst):hover {
-    transform: scale(1.12);
+.target:hover {
+    transform: scale(1.1);
     box-shadow:
         0 0 45px var(--accent-glow),
         inset 0 -6px 14px rgba(0, 0, 0, 0.3),
-        inset 0 4px 10px rgba(255, 255, 255, 0.4);
+        inset 0 4px 10px rgba(255, 255, 255, 0.35);
 }
 
-/* Burst triggered by JS right before removing the target */
-.target.target--burst {
-    animation: target-burst 0.28s cubic-bezier(0.4, 0, 0.6, 1) forwards;
-    pointer-events: none;
+.target:active {
+    transform: scale(0.9);
 }
 
 @keyframes target-pop {
@@ -324,35 +277,6 @@ transform-origin: center;
     60%  { transform: scale(1.15); opacity: 1; }
     100% { transform: scale(1);    opacity: 1; }
 }
-
-@keyframes target-burst {
-    0%   { transform: scale(1);    opacity: 1;   box-shadow: 0 0 30px var(--accent-glow), inset 0 -6px 14px rgba(0, 0, 0, 0.3), inset 0 4px 10px rgba(255, 255, 255, 0.3); }
-    40%  { transform: scale(1.6);  opacity: 0.9; box-shadow: 0 0 60px var(--accent-glow), 0 0 100px rgba(34, 211, 238, 0.8); }
-    100% { transform: scale(2.2);  opacity: 0;   box-shadow: 0 0 0 transparent; }
-}
-
-/* =====================================================
-   Ripple — created by JS on target click
-   ===================================================== */
-.ripple {
-    position: absolute;
-    border-radius: 50%;
-    pointer-events: none;
-    transform: scale(0);
-    animation: ripple-expand 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    background: radial-gradient(circle, rgba(103, 232, 249, 0.85) 0%, rgba(34, 211, 238, 0.4) 40%, transparent 75%);
-    border: 2px solid rgba(34, 211, 238, 0.6);
-}
-
-@keyframes ripple-expand {
-    0%   { transform: scale(0.2);  opacity: 1; }
-    60%  { transform: scale(2.5);  opacity: 0.7; }
-    100% { transform: scale(4);    opacity: 0; }
-}
-
-/* =====================================================
-   Result screen (rendered by JS inside .game__area)
-   ===================================================== */
 
 /* =====================================================
    Result screen (rendered by JS inside .game__area)

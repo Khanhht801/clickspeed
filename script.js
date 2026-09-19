@@ -1,4 +1,4 @@
-// =====================================================
+﻿// =====================================================
 // Click Speed Game — Core Logic
 // Handles game state, timer, and start/end flow.
 // =====================================================
@@ -22,6 +22,83 @@ let isPlaying = false;
 function updateUI() {
     scoreEl.textContent = score;
     timeEl.textContent  = timeLeft;
+
+    // Timer urgent state: add/remove .timer-urgent class based on seconds left
+    const enteringUrgent = isPlaying && timeLeft <= 5 && timeLeft > 0;
+    if (enteringUrgent) {
+        timeEl.parentElement.classList.add("timer-urgent");
+    } else {
+        timeEl.parentElement.classList.remove("timer-urgent");
+    }
+
+    // #region agent log
+    try {
+      const parentEl = timeEl.parentElement;
+      const cs = getComputedStyle(timeEl);
+      const csParent = getComputedStyle(parentEl);
+      const statNthChild2 = document.querySelector('.game__stats .stat:nth-child(2)');
+      const csTimeV2 = statNthChild2 ? getComputedStyle(statNthChild2.querySelector('.stat__value')) : null;
+      fetch('http://127.0.0.1:7424/ingest/718845ce-6025-4255-9a5b-e339f1522faa',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'7d2602'},body:JSON.stringify({
+        sessionId:'7d2602',runId:'pre-fix-2',hypothesisId:'B',location:'script.js:updateUI',
+        message:'updateUI state v2',
+        data:{
+          score,timeLeft,isPlaying,enteringUrgent,
+          parentClass:parentEl.className,
+          parentMatchesNth2:parentEl.matches('.game__stats .stat:nth-child(2)'),
+          timeEl_animName:cs.animationName,
+          timeEl_color:cs.color,
+          timeEl_textShadow:cs.textShadow,
+          parentEl_animName:csParent.animationName,
+          parentEl_color:csParent.color,
+          nth2_query_found:!!statNthChild2,
+          nth2_value_anim:csTimeV2?csTimeV2.animationName:null,
+          nth2_value_color:csTimeV2?csTimeV2.color:null,
+        },
+        timestamp:Date.now()
+      })}).catch(()=>{});
+    } catch(e){}
+    // #endregion
+}
+
+/**
+ * Trigger a score bump animation on the score element.
+ * CSS handles the visual; JS just toggles the class.
+ */
+function bumpScore() {
+    // Remove first to re-trigger animation if called rapidly
+    scoreEl.classList.remove("bump");
+    // Force reflow so the removal actually registers before we re-add
+    void scoreEl.offsetWidth;
+    scoreEl.classList.add("bump");
+
+    // #region agent log
+    try { fetch('http://127.0.0.1:7424/ingest/718845ce-6025-4255-9a5b-e339f1522faa',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'7d2602'},body:JSON.stringify({sessionId:'7d2602',runId:'pre-fix-1',hypothesisId:'D',location:'script.js:bumpScore',message:'bump triggered',data:{className:scoreEl.className,computedAnim:getComputedStyle(scoreEl).animationName},timestamp:Date.now()})}).catch(()=>{}); } catch(e){}
+    // #endregion
+
+    scoreEl.addEventListener("animationend", () => {
+        scoreEl.classList.remove("bump");
+    }, { once: true });
+}
+
+/**
+ * Spawn a ripple at (x, y) relative to the game area.
+ * Uses CSS animation — no canvas or libraries.
+ */
+function spawnRipple(x, y) {
+    const ripple = document.createElement("span");
+    ripple.className = "ripple";
+
+    // Center the ripple on the click point
+    const rippleSize = parseInt(getComputedStyle(document.documentElement)
+        .getPropertyValue("--target-size").trim(), 10) || 64;
+    ripple.style.width  = `${rippleSize}px`;
+    ripple.style.height = `${rippleSize}px`;
+    ripple.style.left   = `${x - rippleSize / 2}px`;
+    ripple.style.top    = `${y - rippleSize / 2}px`;
+
+    gameArea.appendChild(ripple);
+
+    ripple.addEventListener("animationend", () => ripple.remove());
 }
 
 /**
@@ -67,15 +144,31 @@ function spawnTarget() {
     target.style.left = `${randomX}px`;
     target.style.top  = `${randomY}px`;
 
-    // Scoring: only works while game is actively playing
-    target.addEventListener("click", () => {
+    // Scoring + effects: only works while game is actively playing
+    target.addEventListener("click", (e) => {
         if (!isPlaying) return;
-        score += 1;
-        updateUI();
-        spawnTarget(); // remove current + spawn new at a new random spot
+
+        // 1. Capture click position relative to game area (for ripple)
+        const rect = gameArea.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const clickY = e.clientY - rect.top;
+
+        // 2. Burst animation on current target, then spawn new one
+        target.classList.add("target--burst");
+        target.addEventListener("animationend", () => {
+            spawnRipple(clickX, clickY);
+            score += 1;
+            bumpScore();
+            updateUI();
+            spawnTarget();
+        }, { once: true });
     });
 
     gameArea.appendChild(target);
+
+    // #region agent log
+    try { fetch('http://127.0.0.1:7424/ingest/718845ce-6025-4255-9a5b-e339f1522faa',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'7d2602'},body:JSON.stringify({sessionId:'7d2602',runId:'pre-fix-1',hypothesisId:'C',location:'script.js:spawnTarget',message:'target spawned',data:{randomX,randomY,targetSize,areaW:areaRect.width,areaH:areaRect.height,computedAnim:getComputedStyle(target).animation},timestamp:Date.now()})}).catch(()=>{}); } catch(e){}
+    // #endregion
 }
 
 function clearTarget() {
@@ -103,6 +196,9 @@ function updateTimer() {
 function startGame() {
     if (isPlaying) return; // guard against double-clicks
 
+    // 0. Clean up any lingering animations from previous round
+    timeEl.parentElement.classList.remove("timer-urgent");
+
     // 1. Reset state
     score    = 0;
     timeLeft = GAME_DURATION;
@@ -129,12 +225,15 @@ function endGame() {
     // 2. Remove any remaining target
     clearTarget();
 
-    // 3. Update state
+    // 3. Clean up timer-urgent animation
+    timeEl.parentElement.classList.remove("timer-urgent");
+
+    // 4. Update state
     isPlaying = false;
     timeLeft  = 0;
     updateUI();
 
-    // 4. Show result screen & restore start button
+    // 5. Show result screen & restore start button
     showResultScreen();
 }
 
