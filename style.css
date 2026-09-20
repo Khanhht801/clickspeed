@@ -1,57 +1,45 @@
 /* =====================================================
    Click Speed — Stylesheet
-   Dark mode, minimalist gaming feel
    ===================================================== */
 
-/* ===== Design Tokens ===== */
+/* ===== Design tokens ===== */
 :root {
-    /* Surface colors */
-    --bg:            #0a0a0f;
-    --bg-2:          #13131d;
-    --card:          #15151f;
-    --card-border:   #252538;
+    --bg:           #0a0a0f;
+    --bg-2:         #13131d;
+    --card:         #15151f;
+    --card-border:  #252538;
 
-    /* Text */
-    --text:          #f1f5f9;
-    --text-dim:      #94a3b8;
-    --text-muted:    #64748b;
+    --text:         #f1f5f9;
+    --text-dim:     #94a3b8;
+    --text-muted:   #64748b;
 
-    /* Accents — kept to 2 to avoid color noise */
-    --accent:        #22d3ee;   /* cyan — primary */
-    --accent-2:      #06b6d4;
-    --accent-glow:   rgba(34, 211, 238, 0.45);
-    --warning:       #fbbf24;   /* amber — for time */
+    --accent:       #22d3ee;            /* primary cyan */
+    --accent-2:     #06b6d4;
+    --accent-glow:  rgba(34, 211, 238, 0.45);
+    --warning:      #fbbf24;            /* amber for time */
+    --danger:       #f87171;
 
-    /* Radii */
-    --radius:        16px;
-    --radius-sm:     10px;
+    --radius:       16px;
+    --radius-sm:    10px;
 
-    /* Timing */
-    --dur-fast:      0.15s;
-    --dur-base:      0.2s;
-    --dur-slow:      0.3s;
+    --dur-fast:     0.15s;
+    --dur-base:     0.2s;
+    --dur-slow:     0.3s;
 
-    /* Target size — referenced by JS for random-position bounds */
-    --target-size:   64px;
+    --target-size:  64px;               /* JS reads this for spawn bounds */
 
-    /* Fonts */
-    --font-sans:     'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-    --font-mono:     ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+    --font-sans:    'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --font-mono:    ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
 }
 
-/* ===== Reset & Base ===== */
-*,
-*::before,
-*::after {
+/* ===== Reset ===== */
+*, *::before, *::after {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
 }
 
-html,
-body {
-    height: 100%;
-}
+html, body { height: 100%; }
 
 body {
     font-family: var(--font-sans);
@@ -61,57 +49,43 @@ body {
     align-items: center;
     justify-content: center;
     padding: 1.5rem;
-
     background:
         radial-gradient(circle at 15% 10%, rgba(34, 211, 238, 0.05), transparent 45%),
         radial-gradient(circle at 85% 90%, rgba(99, 102, 241, 0.05), transparent 45%),
         linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
     background-attachment: fixed;
-
     -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
 }
 
-/* ===== Game Card ===== */
+/* ===== Game card ===== */
 .game {
     position: relative;
     width: 100%;
     max-width: 480px;
     padding: 2rem 1.75rem;
     text-align: center;
-
     background: var(--card);
     border: 1px solid var(--card-border);
     border-radius: var(--radius);
     overflow: hidden;
-
     box-shadow:
         0 25px 50px -12px rgba(0, 0, 0, 0.55),
         0 0 60px -20px rgba(34, 211, 238, 0.08),
         inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
-/* Top accent line for subtle gaming flair */
+/* Subtle accent line on top of the card */
 .game::before {
     content: '';
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
+    top: 0; left: 0; right: 0;
     height: 1px;
-    background: linear-gradient(
-        90deg,
-        transparent 0%,
-        rgba(34, 211, 238, 0.4) 50%,
-        transparent 100%
-    );
+    background: linear-gradient(90deg, transparent 0%, rgba(34, 211, 238, 0.4) 50%, transparent 100%);
 }
 
-/* ===== Header / Title ===== */
-.game__header {
-    margin-bottom: 1.5rem;
-}
+/* ===== Header ===== */
+.game__header { margin-bottom: 1.5rem; }
 
 .game__title {
     font-size: 1.5rem;
@@ -120,18 +94,16 @@ body {
     background: linear-gradient(180deg, #ffffff 0%, var(--text-dim) 100%);
     -webkit-background-clip: text;
     background-clip: text;
-    -webkit-text-fill-color: transparent;
     color: transparent;
 }
 
-/* ===== Stats (Score / Time) ===== */
+/* ===== Stats ===== */
 .game__stats {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 1rem;
     padding: 1rem;
     margin-bottom: 1.5rem;
-
     background: rgba(0, 0, 0, 0.3);
     border: 1px solid rgba(255, 255, 255, 0.04);
     border-radius: var(--radius-sm);
@@ -160,51 +132,47 @@ body {
     color: var(--accent);
     text-shadow: 0 0 20px var(--accent-glow);
     font-variant-numeric: tabular-nums;
-
     transition: transform var(--dur-fast) ease, color var(--dur-base) ease;
 }
 
-/* Score bump on increment (JS adds .bump class) */
+/* Score bump (JS adds .bump) */
 .stat__value.bump {
     animation: score-bump 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 @keyframes score-bump {
-    0%   { transform: scale(1);   color: var(--accent);    text-shadow: 0 0 20px var(--accent-glow); }
-    40%  { transform: scale(1.4); color: #ffffff;            text-shadow: 0 0 30px rgba(255, 255, 255, 0.9), 0 0 50px var(--accent-glow); }
-    100% { transform: scale(1);   color: var(--accent);    text-shadow: 0 0 20px var(--accent-glow); }
+    0%   { transform: scale(1);   color: var(--accent); text-shadow: 0 0 20px var(--accent-glow); }
+    40%  { transform: scale(1.4); color: #fff;          text-shadow: 0 0 30px rgba(255,255,255,0.9), 0 0 50px var(--accent-glow); }
+    100% { transform: scale(1);   color: var(--accent); text-shadow: 0 0 20px var(--accent-glow); }
 }
 
-/* Time gets a different accent so it pops */
+/* Time stat uses warning color */
 .stat:nth-child(2) .stat__value {
     color: var(--warning);
     text-shadow: 0 0 20px rgba(251, 191, 36, 0.4);
-    transition: transform var(--dur-fast) ease, color var(--dur-base) ease;
 }
 
-/* Timer pulses red & shakes when ≤ 5 seconds.
-   JS adds .timer-urgent to the parent .stat (not to .stat__value),
-   so selector must match the parent class, not the child. */
+/* Urgent timer — JS adds .timer-urgent to the parent .stat */
 .stat.timer-urgent .stat__value {
     animation: timer-pulse 0.6s ease-in-out infinite, timer-shake 0.4s ease-in-out infinite;
-    color: #f87171;
+    color: var(--danger);
     text-shadow: 0 0 20px rgba(248, 113, 113, 0.6);
 }
 
 @keyframes timer-pulse {
     0%, 100% { transform: scale(1);    }
-    50%       { transform: scale(1.12); }
+    50%      { transform: scale(1.12); }
 }
 
 @keyframes timer-shake {
-    0%, 100% { transform: translateX(0)      scale(1.12); }
-    20%      { transform: translateX(-3px)   scale(1.12); }
-    40%      { transform: translateX(3px)    scale(1.12); }
-    60%      { transform: translateX(-2px)  scale(1.12); }
-    80%      { transform: translateX(2px)   scale(1.12); }
+    0%, 100% { transform: translateX(0)   scale(1.12); }
+    20%      { transform: translateX(-3px) scale(1.12); }
+    40%      { transform: translateX(3px)  scale(1.12); }
+    60%      { transform: translateX(-2px) scale(1.12); }
+    80%      { transform: translateX(2px)  scale(1.12); }
 }
 
-/* ===== Game Area ===== */
+/* ===== Game area ===== */
 .game__area {
     position: relative;
     min-height: 280px;
@@ -212,7 +180,6 @@ body {
     align-items: center;
     justify-content: center;
     overflow: hidden;
-
     background:
         radial-gradient(circle at center, rgba(34, 211, 238, 0.04), transparent 70%),
         rgba(0, 0, 0, 0.3);
@@ -220,7 +187,7 @@ body {
     border-radius: var(--radius-sm);
 }
 
-/* ===== Start Button ===== */
+/* ===== Start / Play Again button ===== */
 .game__start {
     font-family: inherit;
     font-size: 1rem;
@@ -228,19 +195,15 @@ body {
     letter-spacing: 1.5px;
     text-transform: uppercase;
     color: #0a0a0f;
-
     padding: 0.95rem 2.5rem;
     border: none;
     border-radius: 999px;
     cursor: pointer;
-
     background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
-
     box-shadow:
         0 0 25px var(--accent-glow),
         0 6px 18px rgba(0, 0, 0, 0.3),
         inset 0 1px 0 rgba(255, 255, 255, 0.35);
-
     transition:
         transform var(--dur-base) cubic-bezier(0.34, 1.56, 0.64, 1),
         box-shadow var(--dur-base) ease,
@@ -269,9 +232,7 @@ body {
     outline-offset: 4px;
 }
 
-/* =====================================================
-   Target
-   ===================================================== */
+/* ===== Target ===== */
 .target {
     position: absolute;
     width: var(--target-size);
@@ -281,28 +242,17 @@ body {
     border-radius: 50%;
     cursor: pointer;
     outline: none;
-
-/* Scale from center so hover/burst stay visually centered
-   on the random position set by left/top (maxX/maxY bounds
-   already account for full target size). */
-transform-origin: center;
-
-    background: radial-gradient(
-        circle at 35% 30%,
-        #67e8f9 0%,
-        var(--accent) 55%,
-        var(--accent-2) 100%
-    );
-
+    transform-origin: center;
+    background: radial-gradient(circle at 35% 30%, #67e8f9 0%, var(--accent) 55%, var(--accent-2) 100%);
     box-shadow:
         0 0 30px var(--accent-glow),
         inset 0 -6px 14px rgba(0, 0, 0, 0.3),
         inset 0 4px 10px rgba(255, 255, 255, 0.3);
-
     animation: target-pop var(--dur-base) cubic-bezier(0.34, 1.56, 0.64, 1);
     transition:
         transform var(--dur-fast) ease,
         box-shadow var(--dur-fast) ease;
+    touch-action: manipulation;        /* disable 300ms tap delay on mobile */
 }
 
 .target:not(.target--burst):hover {
@@ -313,46 +263,41 @@ transform-origin: center;
         inset 0 4px 10px rgba(255, 255, 255, 0.4);
 }
 
-/* Burst triggered by JS right before removing the target */
 .target.target--burst {
     animation: target-burst 0.28s cubic-bezier(0.4, 0, 0.6, 1) forwards;
     pointer-events: none;
 }
 
 @keyframes target-pop {
-    0%   { transform: scale(0);    opacity: 0; }
+    0%   { transform: scale(0);   opacity: 0; }
     60%  { transform: scale(1.15); opacity: 1; }
-    100% { transform: scale(1);    opacity: 1; }
+    100% { transform: scale(1);   opacity: 1; }
 }
 
 @keyframes target-burst {
-    0%   { transform: scale(1);    opacity: 1;   box-shadow: 0 0 30px var(--accent-glow), inset 0 -6px 14px rgba(0, 0, 0, 0.3), inset 0 4px 10px rgba(255, 255, 255, 0.3); }
-    40%  { transform: scale(1.6);  opacity: 0.9; box-shadow: 0 0 60px var(--accent-glow), 0 0 100px rgba(34, 211, 238, 0.8); }
-    100% { transform: scale(2.2);  opacity: 0;   box-shadow: 0 0 0 transparent; }
+    0%   { transform: scale(1);   opacity: 1; box-shadow: 0 0 30px var(--accent-glow), inset 0 -6px 14px rgba(0,0,0,0.3), inset 0 4px 10px rgba(255,255,255,0.3); }
+    40%  { transform: scale(1.6); opacity: 0.9; box-shadow: 0 0 60px var(--accent-glow), 0 0 100px rgba(34,211,238,0.8); }
+    100% { transform: scale(2.2); opacity: 0; box-shadow: 0 0 0 transparent; }
 }
 
-/* =====================================================
-   Ripple — created by JS on target click
-   ===================================================== */
+/* ===== Ripple ===== */
 .ripple {
     position: absolute;
     border-radius: 50%;
     pointer-events: none;
     transform: scale(0);
     animation: ripple-expand 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    background: radial-gradient(circle, rgba(103, 232, 249, 0.85) 0%, rgba(34, 211, 238, 0.4) 40%, transparent 75%);
+    background: radial-gradient(circle, rgba(103,232,249,0.85) 0%, rgba(34,211,238,0.4) 40%, transparent 75%);
     border: 2px solid rgba(34, 211, 238, 0.6);
 }
 
 @keyframes ripple-expand {
-    0%   { transform: scale(0.2);  opacity: 1; }
-    60%  { transform: scale(2.5);  opacity: 0.7; }
-    100% { transform: scale(4);    opacity: 0; }
+    0%   { transform: scale(0.2); opacity: 1; }
+    60%  { transform: scale(2.5); opacity: 0.7; }
+    100% { transform: scale(4);   opacity: 0; }
 }
 
-/* =====================================================
-   Result screen (rendered by JS inside .game__area)
-   ===================================================== */
+/* ===== Result screen (rendered by JS inside .game__area) ===== */
 .result {
     display: flex;
     flex-direction: column;
@@ -372,26 +317,8 @@ transform-origin: center;
     letter-spacing: 0.5px;
 }
 
-.result__value {
-    display: block;
-    font-family: var(--font-mono);
-    font-size: 3rem;
-    line-height: 1;
-    font-weight: 700;
-    color: var(--accent);
-    text-transform: none;
-    letter-spacing: 0;
-    text-shadow: 0 0 24px var(--accent-glow);
-    font-variant-numeric: tabular-nums;
-}
-
-.result__btn {
-    margin-top: 0.5rem;
-}
-
 .result__stats {
     display: flex;
-    flex-direction: row;
     align-items: stretch;
     justify-content: center;
     gap: 0.5rem;
@@ -427,9 +354,18 @@ transform-origin: center;
     line-height: 1.2;
 }
 
-.result__value--small {
-    font-size: 1.5rem;
+.result__value {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 3rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--accent);
+    text-shadow: 0 0 24px var(--accent-glow);
+    font-variant-numeric: tabular-nums;
 }
+
+.result__value--small { font-size: 1.5rem; }
 
 .result__badge {
     margin: 0;
@@ -444,101 +380,102 @@ transform-origin: center;
     animation: target-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+.result__btn { margin-top: 0.5rem; }
+
+/* =====================================================
+   Celebration particles (spawned by JS)
+   ===================================================== */
+.particle {
+    position: fixed;        /* viewport-anchored — left/top set by JS */
+    pointer-events: none;
+    border-radius: 50%;
+    will-change: transform, opacity;
+    z-index: 9999;
+}
+
+.particle--burst {
+    animation: particle-burst 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    box-shadow: 0 0 12px currentColor, 0 0 24px currentColor;
+}
+
+@keyframes particle-burst {
+    0%   { transform: translate(-50%, -50%) scale(0.4); opacity: 1; }
+    60%  { opacity: 1; }
+    100% { transform: translate(calc(-50% + var(--dx, 0px)), calc(-50% + var(--dy, 0px))) scale(0.6); opacity: 0; }
+}
+
+.particle--confetti {
+    animation: particle-confetti 2.8s cubic-bezier(0.4, 0.1, 0.6, 1) forwards;
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
+}
+
+.particle--rect { border-radius: 2px; }
+
+@keyframes particle-confetti {
+    0%   { transform: translate(-50%, -50%) rotate(0deg);   opacity: 1; }
+    100% { transform: translate(calc(-50% + var(--drift, 0px)), 120vh) rotate(720deg); opacity: 0.6; }
+}
+
+.result-flash {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: var(--radius-sm);
+    background: radial-gradient(circle at center, rgba(34,211,238,0.5), rgba(167,139,250,0.3) 40%, transparent 70%);
+    animation: result-flash 0.7s ease-out forwards;
+    z-index: 5;
+}
+
+@keyframes result-flash {
+    0%   { opacity: 0; transform: scale(0.5); }
+    30%  { opacity: 1; transform: scale(1.05); }
+    100% { opacity: 0; transform: scale(1.2); }
+}
+
 /* =====================================================
    Responsive
    ===================================================== */
-
-/* Tablet (≤768px) */
 @media (max-width: 768px) {
-    .game {
-        max-width: 420px;
-        padding: 1.75rem 1.5rem;
-    }
-
-    .game__area {
-        min-height: 240px;
-    }
-
-    :root {
-        --target-size: 58px;
-    }
+    .game      { max-width: 420px; padding: 1.75rem 1.5rem; }
+    .game__area { min-height: 240px; }
+    :root      { --target-size: 58px; }
 }
 
-/* Mobile (≤480px) */
 @media (max-width: 480px) {
-    body {
-        padding: 1rem;
-    }
+    body      { padding: 1rem; }
+    .game     { padding: 1.25rem 1rem; border-radius: 14px; }
+    .game__title { font-size: 1.25rem; }
 
-    .game {
-        padding: 1.25rem 1rem;
-        border-radius: 14px;
-    }
+    .game__stats { padding: 0.85rem 0.75rem; gap: 0.75rem; margin-bottom: 1.25rem; }
+    .stat__value { font-size: 1.85rem; }
+    .stat__label { font-size: 0.65rem; letter-spacing: 1.2px; }
+    .game__area  { min-height: 300px; }
 
-    .game__title {
-        font-size: 1.25rem;
-    }
+    .result__stats { gap: 0.35rem; max-width: 100%; }
+    .result__col   { padding: 0.5rem 0.25rem; border-radius: 10px; }
+    .result__label { font-size: 0.55rem; letter-spacing: 1px; }
+    .result__value { font-size: 2.25rem; }
+    .result__value--small { font-size: 1.25rem; }
 
-    .game__stats {
-        padding: 0.85rem 0.75rem;
-        gap: 0.75rem;
-        margin-bottom: 1.25rem;
-    }
+    .game__start { font-size: 0.9rem; padding: 0.85rem 2rem; letter-spacing: 1.2px; }
 
-    .stat__value {
-        font-size: 1.85rem;
-    }
-
-    .stat__label {
-        font-size: 0.65rem;
-        letter-spacing: 1.2px;
-    }
-
-    .game__area {
-        min-height: 300px;
-    }
-
-    .result__stats {
-        gap: 0.35rem;
-        max-width: 100%;
-    }
-
-    .result__col {
-        padding: 0.5rem 0.25rem;
-        border-radius: 10px;
-    }
-
-    .result__label {
-        font-size: 0.55rem;
-        letter-spacing: 1px;
-    }
-
-    .result__value {
-        font-size: 2.25rem;
-    }
-
-    .result__value--small {
-        font-size: 1.25rem;
-    }
-
-    .game__start {
-        font-size: 0.9rem;
-        padding: 0.85rem 2rem;
-        letter-spacing: 1.2px;
-    }
-
-    :root {
-        --target-size: 52px;
-    }
+    :root { --target-size: 52px; }
 }
 
-/* Accessibility — respect users who prefer reduced motion */
+/* =====================================================
+   Reduced motion — keep visual feedback, shorten animations
+   ===================================================== */
 @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
     *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
+        animation-duration: 0.4s !important;
         transition-duration: 0.01ms !important;
+    }
+    .particle--burst,
+    .particle--confetti { animation-duration: 0.4s !important; }
+    .result-flash        { animation-duration: 0.2s !important; }
+    .stat.timer-urgent .stat__value {
+        animation: none !important;          /* freeze the shake/pulse */
     }
 }

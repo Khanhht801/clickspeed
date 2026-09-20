@@ -1,58 +1,139 @@
 ﻿// =====================================================
 // Click Speed Game — Core Logic
-// Handles game state, timer, target spawning, and start/end flow.
 // =====================================================
 
-// ----- DOM References -----
+// ----- DOM -----
 const startBtn = document.getElementById("start-btn");
 const scoreEl  = document.getElementById("score");
 const timeEl   = document.getElementById("time");
 const gameArea = document.querySelector(".game__area");
 
-// ----- Game Constants -----
-const GAME_DURATION  = 30;              // total seconds per round
+// ----- Constants -----
+const GAME_DURATION  = 30;
+const TARGET_PADDING = 8;            // safety gap from game-area edges
 const BEST_SCORE_KEY = "clickSpeed.bestScore";
+const CONFETTI_COLORS = ["#22d3ee", "#67e8f9", "#fbbf24", "#a78bfa", "#f472b6", "#34d399"];
 
-// ----- Game State -----
-let score     = 0;
-let timeLeft  = GAME_DURATION;
-let timerId   = null;     // setInterval handle, null when no timer running
-let isPlaying = false;    // guards against clicks after game ends
-let activeTarget = null;  // current target element (single source of truth)
+// ----- State -----
+let score        = 0;
+let timeLeft     = GAME_DURATION;
+let isPlaying    = false;            // true only while a round is active
+let timerId      = null;             // setInterval handle, null when stopped
+let activeTarget = null;             // current target DOM node
+let resizeFrame  = null;             // rAF id for debounced resize handling
 
-// ----- High Score Helpers -----
+// =====================================================
+// High-score persistence
+// =====================================================
 function getBestScore() {
-    const raw = localStorage.getItem(BEST_SCORE_KEY);
-    const n   = parseInt(raw, 10);
-    return Number.isFinite(n) && n >= 0 ? n : 0;
+    const n = parseInt(localStorage.getItem(BEST_SCORE_KEY), 10);
+    return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
 function setBestScore(value) {
     localStorage.setItem(BEST_SCORE_KEY, String(value));
 }
 
-// ----- DOM Helpers -----
+// =====================================================
+// UI helpers
+// =====================================================
 function updateUI() {
     scoreEl.textContent = score;
     timeEl.textContent  = timeLeft;
 
-    // Urgent timer style when ≤ 5s left and game is running
-    const urgent = isPlaying && timeLeft <= 5 && timeLeft > 0;
+    // Urgent timer style when ≤ 5s left and a round is active
+    const urgent = isPlaying && timeLeft > 0 && timeLeft <= 5;
     timeEl.parentElement.classList.toggle("timer-urgent", urgent);
 }
 
-/** Play the "score bump" animation by re-triggering the CSS animation. */
+/** Re-trigger the score bump animation by toggling the class. */
 function bumpScore() {
     scoreEl.classList.remove("bump");
-    // Force reflow so re-adding the class restarts the animation
-    void scoreEl.offsetWidth;
+    void scoreEl.offsetWidth;        // force reflow so animation restarts
     scoreEl.classList.add("bump");
-    scoreEl.addEventListener("animationend", () => {
-        scoreEl.classList.remove("bump");
-    }, { once: true });
+    scoreEl.addEventListener("animationend",
+        () => scoreEl.classList.remove("bump"),
+        { once: true });
 }
 
-/** Spawn a ripple at (x, y) relative to the game area. */
+/** Read --target-size from CSS so responsive breakpoints are respected. */
+function getTargetSize() {
+    const raw = getComputedStyle(document.documentElement)
+        .getPropertyValue("--target-size").trim();
+    return parseInt(raw, 10) || 64;
+}
+
+// =====================================================
+// Target spawning
+// =====================================================
+/** Random position inside .game__area keeping the target fully visible. */
+function getRandomPosition() {
+    const rect       = gameArea.getBoundingClientRect();
+    const targetSize = getTargetSize() + TARGET_PADDING;
+    const maxX = Math.max(0, rect.width  - targetSize);
+    const maxY = Math.max(0, rect.height - targetSize);
+    return {
+        x: Math.floor(Math.random() * (maxX + 1)),
+        y: Math.floor(Math.random() * (maxY + 1)),
+    };
+}
+
+function clearTarget() {
+    if (!activeTarget) return;
+    activeTarget.remove();
+    activeTarget = null;
+}
+
+function repositionActiveTarget() {
+    if (!activeTarget || !isPlaying) return;
+    const { x, y } = getRandomPosition();
+    activeTarget.style.left = `${x}px`;
+    activeTarget.style.top  = `${y}px`;
+}
+
+/**
+ * Spawn a new target. The previous one (if any) is removed first.
+ * Clicking a target ignores itself once the round has ended.
+ */
+function spawnTarget() {
+    clearTarget();
+
+    const { x, y } = getRandomPosition();
+
+    const target = document.createElement("button");
+    target.type      = "button";
+    target.className = "target";
+    target.setAttribute("aria-label", "Click target");
+    target.style.left = `${x}px`;
+    target.style.top  = `${y}px`;
+
+    target.addEventListener("click", (e) => {
+        // Click after the round ends (e.g. during the burst animation)
+        // must be ignored so score and timer stay consistent.
+        if (!isPlaying) return;
+
+        // Capture click coords relative to .game__area for the ripple
+        const rect   = gameArea.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const clickY = e.clientY - rect.top;
+
+        target.classList.add("target--burst");
+        target.addEventListener("animationend", () => {
+            spawnRipple(clickX, clickY);
+            score += 1;
+            bumpScore();
+            updateUI();
+            spawnTarget();                // recursive next target
+        }, { once: true });
+    });
+
+    gameArea.appendChild(target);
+    activeTarget = target;
+}
+
+// =====================================================
+// Ripple — visual feedback on target click
+// =====================================================
 function spawnRipple(x, y) {
     const rippleSize = getTargetSize();
     const ripple     = document.createElement("span");
@@ -65,149 +146,60 @@ function spawnRipple(x, y) {
     ripple.addEventListener("animationend", () => ripple.remove(), { once: true });
 }
 
-/** Read --target-size from CSS so responsive breakpoints are respected. */
-function getTargetSize() {
-    const raw = getComputedStyle(document.documentElement)
-        .getPropertyValue("--target-size")
-        .trim();
-    return raw ? parseInt(raw, 10) : 64;
-}
-
-/**
- * Compute a random (x, y) inside the game area that keeps the full
- * target visible. Uses live rect dimensions, so it works across resize.
- */
-function getRandomPosition() {
-    const rect       = gameArea.getBoundingClientRect();
-    const targetSize = getTargetSize();
-    const maxX = Math.max(0, rect.width  - targetSize);
-    const maxY = Math.max(0, rect.height - targetSize);
-    return {
-        x: Math.floor(Math.random() * (maxX + 1)),
-        y: Math.floor(Math.random() * (maxY + 1)),
-    };
-}
-
-/** Reposition the current target if it falls outside the area after resize. */
-function repositionActiveTarget() {
-    if (!activeTarget || !isPlaying) return;
-    const { x, y } = getRandomPosition();
-    activeTarget.style.left = `${x}px`;
-    activeTarget.style.top  = `${y}px`;
-}
-
-/** Remove any current target from the DOM. */
-function clearTarget() {
-    if (activeTarget) {
-        activeTarget.remove();
-        activeTarget = null;
-    }
-}
-
-/** Spawn a new target at a random valid position. Removes any previous one. */
-function spawnTarget() {
-    // Clear the previous target if it's still around
-    if (activeTarget) activeTarget.remove();
-
-    const { x, y } = getRandomPosition();
-
-    const target = document.createElement("button");
-    target.type            = "button";
-    target.className       = "target";
-    target.setAttribute("aria-label", "Click target");
-    target.style.left      = `${x}px`;
-    target.style.top       = `${y}px`;
-
-    target.addEventListener("click", (e) => {
-        // Ignore clicks after the game has ended
-        if (!isPlaying) return;
-
-        // Capture click position relative to the game area for the ripple
-        const rect   = gameArea.getBoundingClientRect();
-        const clickX = e.clientX - rect.left;
-        const clickY = e.clientY - rect.top;
-
-        // Burst animation, then on completion: spawn ripple, score, new target
-        target.classList.add("target--burst");
-        target.addEventListener("animationend", () => {
-            spawnRipple(clickX, clickY);
-            score += 1;
-            bumpScore();
-            updateUI();
-            spawnTarget();
-        }, { once: true });
-    });
-
-    gameArea.appendChild(target);
-    activeTarget = target;
-}
-
-// ----- Timer -----
-function updateTimer() {
-    timeLeft -= 1;
-    updateUI();
-
-    // Stop at 0 — single source of truth for game ending
-    if (timeLeft <= 0) {
-        endGame();
-    }
-}
-
-// ----- Game Lifecycle -----
+// =====================================================
+// Game lifecycle
+// =====================================================
 function startGame() {
-    // Guard against multiple Start clicks creating duplicate timers
+    // Guard: prevent double-clicks from creating duplicate timers
     if (isPlaying) return;
 
-    // Clean up any leftover result panel from a previous round
-    const oldPanel = gameArea.querySelector(".result");
-    if (oldPanel) oldPanel.remove();
+    // Remove leftover result panel from previous round
+    gameArea.querySelector(".result")?.remove();
 
-    // Reset state
+    // Reset round state
     score    = 0;
     timeLeft = GAME_DURATION;
     isPlaying = true;
     updateUI();
 
-    // Hide the Start button — Play Again now lives on the result panel
+    // Hide Start button while playing; Play Again lives on result panel
     startBtn.hidden = true;
 
-    // Spawn first target and start the countdown
     spawnTarget();
-    timerId = setInterval(updateTimer, 1000);
+    timerId = setInterval(tick, 1000);
+}
+
+function tick() {
+    timeLeft -= 1;
+    updateUI();
+    if (timeLeft <= 0) endGame();      // stop the clock, show results
 }
 
 function endGame() {
-    // Stop the countdown (idempotent — safe if called more than once)
+    // Idempotent — safe if invoked more than once
     if (timerId !== null) {
         clearInterval(timerId);
         timerId = null;
     }
-
-    // Mark game as ended so any pending target clicks are ignored
     isPlaying = false;
 
-    // Clean up the target and urgent-timer styling
     clearTarget();
     timeEl.parentElement.classList.remove("timer-urgent");
 
-    // Persist best score if this round beat it
+    // Persist high score if beaten
     const previousBest = getBestScore();
-    const isNewBest    = score > previousBest && score > 0;
+    const isNewBest    = score > previousBest;
     if (isNewBest) setBestScore(score);
     const bestScore = Math.max(score, previousBest);
 
-    // Time stays at 0 on the final UI
-    timeLeft = 0;
+    timeLeft = 0;                      // freeze display at 0
     updateUI();
-
-    // Show the result panel with Final Score, CPS, Best Score, Play Again
     showResultScreen(bestScore, isNewBest);
 }
 
-/**
- * Render the end-of-round result panel inside .game__area.
- * Includes a Play Again button that fully resets and restarts the game.
- */
+// =====================================================
+// Result screen
+// =====================================================
 function showResultScreen(bestScore, isNewBest) {
     const panel = document.createElement("div");
     panel.className = "result";
@@ -221,7 +213,7 @@ function showResultScreen(bestScore, isNewBest) {
         <div class="result__stats">
             <div class="result__col">
                 <span class="result__label">Final Score</span>
-                <strong class="result__value" id="result-final-score">${score}</strong>
+                <strong class="result__value" id="result-final-score">0</strong>
             </div>
             <div class="result__col">
                 <span class="result__label">Clicks / Sec</span>
@@ -237,25 +229,116 @@ function showResultScreen(bestScore, isNewBest) {
             Play Again
         </button>
     `;
-
     gameArea.appendChild(panel);
 
-    // Play Again: remove the panel and start a fresh round.
-    // Guard against double-clicks: if a game is already in progress, ignore.
-    const restartBtn = panel.querySelector("#restart-btn");
-    restartBtn.addEventListener("click", () => {
-        if (isPlaying) return;
+    // Celebration: flash + burst + confetti + score count-up
+    spawnFlash();
+    spawnBurst(panel);
+    spawnConfetti(isNewBest ? 80 : 40);
+    animateScoreCountUp(panel.querySelector("#result-final-score"), score, 1200);
+
+    // Play Again: remove the panel, restart a round
+    panel.querySelector("#restart-btn").addEventListener("click", () => {
+        if (isPlaying) return;          // debounce
         panel.remove();
         startGame();
     });
 }
 
-// ----- Event Bindings -----
+// =====================================================
+// Celebration effects
+// =====================================================
+function randomColor() {
+    return CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)];
+}
+
+/** Brief colored flash inside .game__area — an instant "win!" cue. */
+function spawnFlash() {
+    const flash = document.createElement("div");
+    flash.className = "result-flash";
+    gameArea.appendChild(flash);
+    flash.addEventListener("animationend", () => flash.remove(), { once: true });
+}
+
+/** Radial burst of glowing particles from the center of `originEl`. */
+function spawnBurst(originEl) {
+    const rect    = originEl.getBoundingClientRect();
+    const cx      = rect.left + rect.width  / 2;
+    const cy      = rect.top  + rect.height / 2;
+    const COUNT   = 36;
+
+    for (let i = 0; i < COUNT; i++) {
+        const angle    = (Math.PI * 2 * i) / COUNT + (Math.random() * 0.4 - 0.2);
+        const distance = 80 + Math.random() * 120;        // 80–200 px
+        const size     = 8 + Math.random() * 8;
+
+        const p = document.createElement("span");
+        p.className   = "particle particle--burst";
+        const color   = randomColor();
+        p.style.background = color;
+        p.style.color      = color;                        // drives glow shadow
+        p.style.width  = `${size}px`;
+        p.style.height = `${size}px`;
+        p.style.left   = `${cx}px`;
+        p.style.top    = `${cy}px`;
+        p.style.setProperty("--dx", `${Math.cos(angle) * distance}px`);
+        p.style.setProperty("--dy", `${Math.sin(angle) * distance}px`);
+
+        document.body.appendChild(p);
+        p.addEventListener("animationend", () => p.remove(), { once: true });
+    }
+}
+
+/** Falling confetti across the top of the game card. */
+function spawnConfetti(count) {
+    const gameRect  = gameArea.getBoundingClientRect();
+    const gameLeft  = gameRect.left;
+    const gameWidth = gameRect.width;
+    const fallStart = gameRect.top - 20;
+
+    for (let i = 0; i < count; i++) {
+        const isRect = Math.random() < 0.4;               // mix of circles & rectangles
+        const p      = document.createElement("span");
+        p.className   = `particle particle--confetti${isRect ? " particle--rect" : ""}`;
+        p.style.background = randomColor();
+
+        const size   = isRect ? 6 + Math.random() * 4 : 7 + Math.random() * 6;
+        const length = isRect ? 12 + Math.random() * 8 : size;
+
+        p.style.left   = `${gameLeft + Math.random() * gameWidth}px`;
+        p.style.top    = `${fallStart}px`;
+        p.style.width  = `${size}px`;
+        p.style.height = `${length}px`;
+        p.style.animationDelay = `${Math.random() * 0.4}s`;
+        p.style.setProperty("--drift", `${(Math.random() - 0.5) * 120}px`);
+
+        document.body.appendChild(p);
+        p.addEventListener("animationend", () => p.remove(), { once: true });
+    }
+}
+
+/** Animate a number element counting up from 0 to `target`. */
+function animateScoreCountUp(el, target, duration = 900) {
+    if (!el) return;
+    const start = performance.now();
+
+    function frame(now) {
+        const t     = Math.min(1, (now - start) / duration);
+        const eased = 1 - Math.pow(1 - t, 3);              // ease-out cubic
+        el.textContent = Math.round(target * eased);
+        if (t < 1) requestAnimationFrame(frame);
+        else el.textContent = target;                     // pin to exact value
+    }
+    requestAnimationFrame(frame);
+}
+
+// =====================================================
+// Event bindings
+// =====================================================
 startBtn.addEventListener("click", startGame);
 
-// Reposition the active target on resize so it never falls outside the area.
-// Debounced via rAF to avoid spamming during continuous resize events.
-let resizeFrame = null;
+// Reposition the active target on resize so it never falls outside.
+// rAF debounce keeps this cheap during continuous resize events.
 window.addEventListener("resize", () => {
     if (resizeFrame !== null) cancelAnimationFrame(resizeFrame);
     resizeFrame = requestAnimationFrame(() => {
@@ -264,5 +347,5 @@ window.addEventListener("resize", () => {
     });
 });
 
-// ----- Initial Render -----
+// Initial render
 updateUI();
